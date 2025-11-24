@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="miui_is_spinner_row" type="id"/>
+    <item name="miui_spinner_overlay_fadeout" type="id"/>
+</resources>

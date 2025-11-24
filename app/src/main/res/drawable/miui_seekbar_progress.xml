@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 背景轨道（灰色胶囊） -->
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="999dp"/>
+            <solid android:color="#E9E9E9"/>
+        </shape>
+    </item>
+
+    <!-- 第二层进度（蓝色胶囊） -->
+    <item android:id="@android:id/progress">
+        <clip android:clipOrientation="horizontal" android:gravity="left">
+            <shape android:shape="rectangle">
+                <corners android:radius="999dp"/>
+                <!-- 换成你 switch 的蓝色 -->
+                <solid android:color="#3D7BFF"/>
+            </shape>
+        </clip>
+    </item>
+
+</layer-list>
