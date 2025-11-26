@@ -8,17 +8,22 @@ import android.app.FragmentManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.os.Bundle
-import com.lingdu.ldm.R
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.view.WindowInsetsController
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.Keep
+import com.lingdu.ldm.R
 import com.lingdu.ldm.activity.annotation.BMMainPage
 import com.lingdu.ldm.activity.annotation.BMMenuPage
 import com.lingdu.ldm.activity.annotation.BMPage
@@ -28,16 +33,9 @@ import com.lingdu.ldm.activity.data.InitView
 import com.lingdu.ldm.activity.data.SafeSharedPreferences
 import com.lingdu.ldm.activity.fragment.MIUIFragment
 import com.lingdu.ldm.activity.view.BaseView
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.os.Build
-import android.view.WindowInsetsController
-import android.view.WindowManager
+import com.lingdu.ldm.activity.view.GlobalTitle
 import eightbitlab.com.blurview.BlurView
-import eightbitlab.com.blurview.RenderEffectBlur
 import eightbitlab.com.blurview.RenderScriptBlur
-import android.view.ViewGroup
-
 
 @Keep
 open class MIUIActivity : Activity() {
@@ -53,30 +51,8 @@ open class MIUIActivity : Activity() {
     lateinit var topBarContainer: FrameLayout
     lateinit var topBarContent: LinearLayout
 
-    fun setTopBarProgress(progress: Float) {
-        val p = progress.coerceIn(0f, 1f)
-
-        // 顶部栏整体不动 alpha，避免抖
-        topBarContainer.alpha = 1f
-
-        // 模糊层跟着渐显/渐隐
-        blurView.alpha = p * 2
-
-        val isNight = (resources.configuration.uiMode and
-                Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-
-        // 白雾叠加跟着渐显/渐隐，最高 90%
-        val overlayAlpha = (p * 0.9f * 255).toInt()
-        val overlayColor = if (isNight) (overlayAlpha shl 24) or 0x00F000000 else (overlayAlpha shl 24) or 0x00FF7F7F7
-        blurView.setOverlayColor(overlayColor)
-
-        // 文字/按钮跟着渐显/渐隐
-        topBarContent.alpha = p
-
-        topBarContainer.isClickable = p > 0.02f
-    }
-
-
+    // 🔥 全局大标题
+    private var globalTitleView: GlobalTitle? = null
 
     companion object {
         var safeSP: SafeSharedPreferences = SafeSharedPreferences()
@@ -88,6 +64,46 @@ open class MIUIActivity : Activity() {
         lateinit var activity: MIUIActivity
     }
 
+    override fun onResume() {
+        super.onResume()
+        // 回到任何一个继承 MIUIActivity 的界面，都把静态指针重新指向当前这个
+        context = this
+        activity = this
+    }
+
+
+    // 供 BasePage 调用更新标题
+    // 供 BasePage 调用更新标题
+    fun setPageTitle(text: String) {
+        runOnUiThread {
+            // 每次切换页面时先把大标题的位置归零，再更新文字
+            globalTitleView?.apply {
+                translationY = 0f
+                updateTitle(text)
+            }
+        }
+    }
+
+
+    fun setTopBarProgress(progress: Float) {
+        val p = progress.coerceIn(0f, 1f)
+        topBarContainer.alpha = 1f
+        blurView.alpha = p * 2
+        val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val overlayAlpha = (p * 0.9f * 255).toInt()
+        val overlayColor = if (isNight) (overlayAlpha shl 24) or 0x00F000000 else (overlayAlpha shl 24) or 0x00FF7F7F7
+        blurView.setOverlayColor(overlayColor)
+        topBarContent.alpha = p
+        topBarContainer.isClickable = p > 0.02f
+    }
+
+    fun onPageScroll(scrollY: Int) {
+        val offset = scrollY.coerceAtLeast(0)
+        // ScrollView 内容往上滚多少，大标题就往上挪多少
+        globalTitleView?.translationY = -offset.toFloat()
+    }
+
+    // ===== 各种 View 的懒加载 =====
     private val backButton by lazy {
         ImageView(activity).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -126,31 +142,19 @@ open class MIUIActivity : Activity() {
         else dp2px(this, 24f)
     }
 
-
     private val titleView by lazy {
         TextView(activity).apply {
-            // 关键：宽度用 0 + weight=1，占满左右按钮之间的空间
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            ).also {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).also {
                 it.gravity = Gravity.CENTER_VERTICAL
             }
-
-            // 关键：文字居中
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
-
             setTextColor(getColor(R.color.whiteText))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             paint.typeface = Typeface.defaultFromStyle(Typeface.BOLD)
-
-            // 关键：文字往下挪一点
             setPadding(0, dp2px(activity, 4f), 0, 0)
         }
     }
-
 
     private var frameLayoutId: Int = -1
     private val frameLayout by lazy {
@@ -182,14 +186,16 @@ open class MIUIActivity : Activity() {
         }
     }
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         context = this
         activity = this
         register()
         actionBar?.hide()
 
-        // ===== 根布局改成 FrameLayout，让顶栏覆盖在内容上 =====
+        // 1. 创建总根布局 FrameLayout
         val root = FrameLayout(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -198,42 +204,43 @@ open class MIUIActivity : Activity() {
             background = getDrawable(R.color.foreground)
         }
 
-        // ===== 顶部栏容器（覆盖层）=====
+        // 2. 添加内容容器 (最底层)
+        root.addView(frameLayout)
+
+        // 3. ✅ 添加全局标题 (中间层，浮在内容之上)
+        globalTitleView = GlobalTitle(this)
+        root.addView(globalTitleView)
+
+        // 4. 添加顶部栏 (最上层)
         topBarContainer = FrameLayout(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP
             )
-
-            // 阴影去掉：不设置 elevation
             background = null
             alpha = 0f
             isClickable = false
 
-            // ===== 模糊背景层（永远存在）=====
+            // 4.1 模糊背景
             blurView = BlurView(activity).apply {
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
-
                 val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
                 val windowBg = window.decorView.background ?: ColorDrawable(Color.TRANSPARENT)
-
                 setupWith(rootView)
-                    .setFrameClearDrawable(windowBg) // ✅ 关键：用 window 背景，不用 rootView.background
-                    .setBlurAlgorithm(eightbitlab.com.blurview.RenderScriptBlur(activity))
+                    .setFrameClearDrawable(windowBg)
+                    .setBlurAlgorithm(RenderScriptBlur(activity))
                     .setBlurRadius(20f)
                     .setBlurAutoUpdate(true)
                     .setHasFixedTransformationMatrix(true)
-
-                // 初始无白雾（但模糊已经在）
                 setOverlayColor(0x00FFFFFF)
             }
             addView(blurView)
 
-            // ===== 顶部栏内容 =====
+            // 4.2 顶部栏内容 (返回键、小标题、菜单)
             val statusH = getStatusBarHeight()
             topBarContent = LinearLayout(activity).apply {
                 layoutParams = FrameLayout.LayoutParams(
@@ -242,31 +249,29 @@ open class MIUIActivity : Activity() {
                 )
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-
                 minimumHeight = statusH + dp2px(activity, 54f)
-
                 setPadding(
                     dp2px(activity, 25f),
                     statusH + dp2px(activity, 8f),
                     dp2px(activity, 25f),
                     dp2px(activity, 14f)
                 )
-
                 addView(backButton)
                 addView(titleView)
                 addView(menuButton)
-
-                alpha = 0f // 文字初始隐藏
+                alpha = 0f
             }
             addView(topBarContent)
         }
 
-
-        root.addView(frameLayout)
+        // 将 TopBar 加入根布局
         root.addView(topBarContainer)
+
+        topBarContainer.bringToFront()
+
         setContentView(root)
 
-        // ===== 原逻辑不动 =====
+        // ===== 状态恢复逻辑 =====
         if (savedInstanceState != null) {
             if (this::initViewData.isInitialized) {
                 viewData = InitView(dataList).apply(initViewData)
@@ -344,6 +349,7 @@ open class MIUIActivity : Activity() {
     fun setSP(sharedPreferences: SharedPreferences) { safeSP.mSP = sharedPreferences }
     fun getSP(): SharedPreferences? = safeSP.mSP
 
+    // ✅ 恢复了原始 showFragment 的逻辑，并加入了 setPageTitle
     fun showFragment(key: String) {
         if (this::initViewData.isInitialized) {
             title = dataList[key]?.title
@@ -352,31 +358,11 @@ open class MIUIActivity : Activity() {
             if (key != "Main" && fragmentManager.backStackEntryCount != 0) {
                 fragmentManager.beginTransaction().let {
                     if (key != "Menu") {
-                        if (isRtl(activity)) it.setCustomAnimations(
-                            R.animator.slide_left_in,
-                            R.animator.slide_right_out,
-                            R.animator.slide_right_in,
-                            R.animator.slide_left_out
-                        )
-                        else it.setCustomAnimations(
-                            R.animator.slide_right_in,
-                            R.animator.slide_left_out,
-                            R.animator.slide_left_in,
-                            R.animator.slide_right_out
-                        )
+                        if (isRtl(activity)) it.setCustomAnimations(R.animator.slide_left_in, R.animator.slide_right_out, R.animator.slide_right_in, R.animator.slide_left_out)
+                        else it.setCustomAnimations(R.animator.slide_right_in, R.animator.slide_left_out, R.animator.slide_left_in, R.animator.slide_right_out)
                     } else {
-                        if (isRtl(activity)) it.setCustomAnimations(
-                            R.animator.slide_right_in,
-                            R.animator.slide_left_out,
-                            R.animator.slide_left_in,
-                            R.animator.slide_right_out
-                        )
-                        else it.setCustomAnimations(
-                            R.animator.slide_left_in,
-                            R.animator.slide_right_out,
-                            R.animator.slide_right_in,
-                            R.animator.slide_left_out
-                        )
+                        if (isRtl(activity)) it.setCustomAnimations(R.animator.slide_right_in, R.animator.slide_left_out, R.animator.slide_left_in, R.animator.slide_right_out)
+                        else it.setCustomAnimations(R.animator.slide_left_in, R.animator.slide_right_out, R.animator.slide_right_in, R.animator.slide_left_out)
                     }
                 }.replace(frameLayoutId, frame).addToBackStack(key).commit()
                 backButton.visibility = View.VISIBLE
@@ -390,6 +376,10 @@ open class MIUIActivity : Activity() {
 
         if (!pageInfo.containsKey(key)) throw Exception("No page found")
         val thisPage = pageInfo[key]!!
+
+        // 🔥 刷新大标题
+        setPageTitle(thisPage.getPageTitle())
+
         title = getPageTitle(thisPage::class.java)
         thisName.add(key)
         val frame = MIUIFragment(key)
@@ -397,31 +387,11 @@ open class MIUIActivity : Activity() {
         if (key != "__main__" && fragmentManager.backStackEntryCount != 0) {
             fragmentManager.beginTransaction().let {
                 if (key != "__menu__") {
-                    if (isRtl(activity)) it.setCustomAnimations(
-                        R.animator.slide_left_in,
-                        R.animator.slide_right_out,
-                        R.animator.slide_right_in,
-                        R.animator.slide_left_out
-                    )
-                    else it.setCustomAnimations(
-                        R.animator.slide_right_in,
-                        R.animator.slide_left_out,
-                        R.animator.slide_left_in,
-                        R.animator.slide_right_out
-                    )
+                    if (isRtl(activity)) it.setCustomAnimations(R.animator.slide_left_in, R.animator.slide_right_out, R.animator.slide_right_in, R.animator.slide_left_out)
+                    else it.setCustomAnimations(R.animator.slide_right_in, R.animator.slide_left_out, R.animator.slide_left_in, R.animator.slide_right_out)
                 } else {
-                    if (isRtl(activity)) it.setCustomAnimations(
-                        R.animator.slide_right_in,
-                        R.animator.slide_left_out,
-                        R.animator.slide_left_in,
-                        R.animator.slide_right_out
-                    )
-                    else it.setCustomAnimations(
-                        R.animator.slide_left_in,
-                        R.animator.slide_right_out,
-                        R.animator.slide_right_in,
-                        R.animator.slide_left_out
-                    )
+                    if (isRtl(activity)) it.setCustomAnimations(R.animator.slide_right_in, R.animator.slide_left_out, R.animator.slide_left_in, R.animator.slide_right_out)
+                    else it.setCustomAnimations(R.animator.slide_left_in, R.animator.slide_right_out, R.animator.slide_right_in, R.animator.slide_left_out)
                 }
             }.replace(frameLayoutId, frame).addToBackStack(key).commit()
 
@@ -434,6 +404,91 @@ open class MIUIActivity : Activity() {
             fragmentManager.beginTransaction().replace(frameLayoutId, frame).addToBackStack(key).commit()
         }
     }
+
+
+
+    /**
+     * ✅ 恢复了底部菜单专用动画逻辑：showFragmentWithSlide
+     * 确保 direction 逻辑保留，并且在里面调用 setPageTitle
+     */
+    /**
+     * 底部菜单专用：带方向动画的页面切换
+     *
+     * @param key       页面 key（"__main__", "TestPage" 等）
+     * @param direction 1  = 向右切过去（index 变大，例如 0 -> 1）
+     *                 -1 = 向左切回来（index 变小，例如 1 -> 0）
+     */
+    fun showFragmentWithSlide(key: String, direction: Int) {
+        // 兼容 initViewData 模式，你现在基本用不到，简单处理即可
+        if (this::initViewData.isInitialized) {
+            showFragment(key)
+            return
+        }
+
+        if (!pageInfo.containsKey(key)) throw Exception("No page found")
+
+        val thisPage = pageInfo[key]!!
+        title = getPageTitle(thisPage::class.java)
+        thisName.add(key)
+        val frame = MIUIFragment(key)
+
+        val ft = fragmentManager.beginTransaction()
+
+        // === 水平方向动画（只做位移动画，一切透明度效果都交给你自己的 animator xml）===
+        val rtl = isRtl(activity)
+
+        if (direction >= 0) {
+            // 👉 往右切：当前页往左出去，新页从右进
+            if (rtl) {
+                ft.setCustomAnimations(
+                    R.animator.slide_left_in,
+                    R.animator.slide_right_out
+                )
+            } else {
+                ft.setCustomAnimations(
+                    R.animator.slide_right_in,
+                    R.animator.slide_left_out
+                )
+            }
+        } else {
+            // 👉 往左切回来：当前页往右出去，新页从左进
+            if (rtl) {
+                ft.setCustomAnimations(
+                    R.animator.slide_right_in,
+                    R.animator.slide_left_out
+                )
+            } else {
+                ft.setCustomAnimations(
+                    R.animator.slide_left_in,
+                    R.animator.slide_right_out
+                )
+            }
+        }
+
+        // === 下面这块，完全照你原来的 showFragment 非 initView 模式抄过来 ===
+        if (key != "__main__" && fragmentManager.backStackEntryCount != 0) {
+            ft.replace(frameLayoutId, frame).addToBackStack(key).commit()
+
+            setBackupShow(true)
+            if (key !in arrayOf("__main__", "__menu__")) {
+                setMenuShow(!getPageHideMenu(thisPage))
+            }
+            if (key == "__menu__") {
+                setMenuShow(false)
+            }
+        } else {
+            setMenuShow(pageInfo.containsKey("__menu__"))
+            setBackupShow(
+                pageInfo["__main__"]!!
+                    .javaClass
+                    .getAnnotation(com.lingdu.ldm.activity.annotation.BMMainPage::class.java)!!
+                    .showBack
+            )
+            ft.replace(frameLayoutId, frame).addToBackStack(key).commit()
+        }
+    }
+
+
 
     fun setMenuShow(show: Boolean) {
         if (this::initViewData.isInitialized) {
@@ -470,10 +525,15 @@ open class MIUIActivity : Activity() {
     }
 
     fun getThisAsync(key: String): AsyncInit? {
-        if (this::initViewData.isInitialized) return dataList[key]?.async
+        if (this::initViewData.isInitialized) {
+            return dataList[key]?.async
+        }
 
-        val currentPage = pageInfo[key]!!
-        if (currentPage.itemList.size == 0) currentPage.onCreate()
+        // key 找不到就直接返回 null，交给 Fragment 里 async? 去判断
+        val currentPage = pageInfo[key] ?: return null
+
+        if (currentPage.itemList.isEmpty()) currentPage.onCreate()
+
         return object : AsyncInit {
             override val skipLoadItem: Boolean
                 get() = currentPage.skipLoadItem
@@ -483,6 +543,7 @@ open class MIUIActivity : Activity() {
             }
         }
     }
+
 
     fun getAllCallBacks(): (() -> Unit)? = callbacks
     fun setAllCallBacks(callbacks: () -> Unit) { this.callbacks = callbacks }
@@ -512,11 +573,16 @@ open class MIUIActivity : Activity() {
                     }
                 }
             }
-            title = if (this::initViewData.isInitialized) {
-                dataList[name]?.title
+
+            // ✅ 返回时也更新大标题
+            if (this::initViewData.isInitialized) {
+                title = dataList[name]?.title
             } else {
-                getPageTitle(pageInfo[name]!!::class.java)
+                val prevPage = pageInfo[name]!!
+                setPageTitle(prevPage.getPageTitle())
+                title = getPageTitle(prevPage::class.java)
             }
+
             fragmentManager.popBackStack()
         }
     }

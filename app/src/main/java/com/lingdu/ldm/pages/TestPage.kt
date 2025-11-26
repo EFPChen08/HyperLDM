@@ -32,15 +32,13 @@ import com.lingdu.ldm.activity.data.CardScope
 import com.lingdu.ldm.dialog.LDialog
 import com.lingdu.ldm.dialog.PDialog
 
-@BMMainPage("Home")
-
-class MainPage : BasePage() {
-
-    override fun getPageTitle(): String = "HyperLDM"
+@BMPage
+class TestPage : BasePage() {
+    override fun getPageTitle(): String = "HyperLDM111"
 
     override fun onCreate() {
 
-        setTitle("HyperLDM")
+        setTitle("HyperLDM111")
 
         Card(onClick = {
             MIUIDialog(activity) {
@@ -59,8 +57,6 @@ class MainPage : BasePage() {
         }) {
             add(TextV("内容"))
         }
-
-        NNone()
 
         val okBtn = BlockMiUIButton(activity).apply {
             text = "弹Dialog"

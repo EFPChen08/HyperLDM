@@ -1,23 +1,6 @@
 /*
  * BlockMIUI
  * Copyright (C) 2022 fkj@fkj233.cn
- * https://github.com/577fkj/BlockMIUI
- *
- * This software is free opensource software: you can redistribute it
- * and/or modify it under the terms of the GNU Lesser General Public License v2.1
- * as published by the Free Software Foundation; either
- * version 3 of the License, or any later version and our eula as published
- * by 577fkj.
- *
- * This software is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * GNU Lesser General Public License v2.1 for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License v2.1
- * and eula along with this software.  If not, see
- * <https://www.gnu.org/licenses/>
- * <https://github.com/577fkj/BlockMIUI/blob/main/LICENSE>.
  */
 
 @file:Suppress("DEPRECATION", "DuplicatedCode")
@@ -51,12 +34,9 @@ import android.animation.ValueAnimator
 import android.os.Build
 import android.view.MotionEvent
 import android.view.animation.AccelerateInterpolator
-import android.animation.AnimatorListenerAdapter
 import android.content.Context
-import kotlin.math.max
 import android.content.res.Configuration
 import android.graphics.drawable.StateListDrawable
-import androidx.core.content.ContentProviderCompat.requireContext
 
 @Suppress("MemberVisibilityCanBePrivate")
 @SuppressLint("ValidFragment")
@@ -91,7 +71,6 @@ class MIUIFragment() : Fragment() {
     private var prevIsButtonCard = false
     private val SEAM_OVERLAP_DP = 1f   // 组内卡片向上重叠 1dp，消除凹缝
 
-    /** foreground 遮罩 tag key（随便挑个不冲突的 int） */
     private val TAG_PRESS_OVERLAY = 0x10203040
 
     constructor(keys: String) : this() {
@@ -117,16 +96,22 @@ class MIUIFragment() : Fragment() {
             )
             isFillViewport = true
 
+            // ✅✅ 关键修改：设置顶部 Padding 避开大标题 (150dp > 标题高度)
+            setPadding(0, dp2px(context, 165f), 0, 0)
+
+            // ✅✅ 关键修改：允许内容划上去穿过标题下方
+            clipToPadding = false
+
             val bgColor = if (context.isNightMode()) "#000000" else "#F7F7F7"
             setBackgroundColor(Color.parseColor(bgColor))
 
             addView(LinearLayout(context).apply {
                 layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.FILL_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Color.parseColor(bgColor))
+                // 注意这里不要设背景色，用外层的
                 itemView = this
                 if (async?.skipLoadItem != true) initData()
             })
@@ -135,7 +120,8 @@ class MIUIFragment() : Fragment() {
         return scrollView
     }
 
-    // ====== 卡片背景/分组逻辑 ======
+    // ====== 以下逻辑保持不变 (复制你的原代码) ======
+
     private enum class CornerMode { FULL, TOP, MIDDLE, BOTTOM }
     private val RADIUS_DP = 18f
 
@@ -159,7 +145,6 @@ class MIUIFragment() : Fragment() {
         }
     }
 
-    /** ✅ 专用遮罩（不靠 state list，alpha 我们手动动画） */
     private fun makePressOverlay(mode: CornerMode): GradientDrawable {
         val baseColor = if (isNightMode()) "#24FFFFFF" else "#1E000000"
         return makeCardDrawable(mode, baseColor).apply {
@@ -170,40 +155,13 @@ class MIUIFragment() : Fragment() {
 
     private fun isNightMode(): Boolean {
         val uiMode = context?.resources?.configuration?.uiMode ?: 0
-        val nightMask = uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-        return nightMask == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val nightMask = uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return nightMask == Configuration.UI_MODE_NIGHT_YES
     }
 
 
-    private fun createPressForeground(mode: CornerMode): StateListDrawable {
-        val pressedColor = if (isNightMode()) {
-            "#24FFFFFF"   // ✅ 深色模式：14% 白遮罩
-        } else {
-            "#1E000000"   // 浅色模式：12% 黑遮罩（原来的）
-        }
-
-        return StateListDrawable().apply {
-            addState(
-                intArrayOf(android.R.attr.state_pressed),
-                makeCardDrawable(mode, pressedColor)
-            )
-            addState(
-                intArrayOf(),
-                makeCardDrawable(mode, "#00000000")
-            )
-        }
-    }
-
-
-
-    /**
-     * ✅ 普通卡片 foreground = 黑遮罩 overlay
-     * - mode 变化时只更新半径，不替换 drawable，保证动画稳定
-     */
     private fun setCardBg(target: LinearLayout?, mode: CornerMode, isButton: Boolean) {
         target ?: return
-
-        // 深浅色卡片底
         val cardColor = if (context.isNightMode()) "#242424" else "#FFFFFF"
         target.background = makeCardDrawable(mode, cardColor)
 
@@ -219,14 +177,12 @@ class MIUIFragment() : Fragment() {
                     target.foreground = null
                     target.setTag(TAG_PRESS_OVERLAY, null)
                 } else {
-                    // ✅ 取旧 overlay（不替换，避免动画被重置）
                     val old = target.getTag(TAG_PRESS_OVERLAY) as? GradientDrawable
 
                     val baseColor = if (isNightMode()) "#24FFFFFF" else "#1E000000"
                     val radii = computeRadii(mode)
 
                     val overlay = if (old != null) {
-                        // 只更新圆角和颜色，保留当前 alpha
                         old.cornerRadii = radii
                         old.setColor(Color.parseColor(baseColor))
                         old
@@ -235,13 +191,10 @@ class MIUIFragment() : Fragment() {
                             target.setTag(TAG_PRESS_OVERLAY, it)
                         }
                     }
-
                     target.foreground = overlay
                 }
             }
         }
-
-
     }
 
 
@@ -273,20 +226,28 @@ class MIUIFragment() : Fragment() {
                     override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
                         val offset = rv.computeVerticalScrollOffset()
                         act.setTopBarProgress(offset / thresholdPx)
+                        // 同步大标题位置
+                        act.onPageScroll(offset)
                     }
                 })
             }
             is androidx.core.widget.NestedScrollView -> {
                 scroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
                     act.setTopBarProgress(scrollY / thresholdPx)
+                    // 同步大标题位置
+                    act.onPageScroll(scrollY)
                 }
             }
             is android.widget.ScrollView -> {
                 scroll.viewTreeObserver.addOnScrollChangedListener {
-                    act.setTopBarProgress(scroll.scrollY / thresholdPx)
+                    val y = scroll.scrollY
+                    act.setTopBarProgress(y / thresholdPx)
+                    // 同步大标题位置
+                    act.onPageScroll(y)
                 }
             }
         }
+
     }
 
     private fun containsInteractive(v: View?): Boolean {
@@ -308,8 +269,9 @@ class MIUIFragment() : Fragment() {
     private fun stripInnerPressOverlays(v: View?) {
         if (v == null) return
 
+        // ✅ 增加对 TAG_FORCE_CARD 的豁免
         if (v is MIUISwitch || v is SeekBar || v is Spinner || v is EditText ||
-            v is Button || v is CompoundButton
+            v is Button || v is CompoundButton || v.getTag(TAG_FORCE_CARD) == true
         ) return
 
         if (v is ViewGroup) {
@@ -333,7 +295,6 @@ class MIUIFragment() : Fragment() {
         return null
     }
 
-    // ====== 数据初始化 ======
     fun initData() {
         for (item: BaseView in MIUIActivity.activity.getThisItems(
             key.ifEmpty { MIUIActivity.activity.getTopPage() }
@@ -342,7 +303,6 @@ class MIUIFragment() : Fragment() {
         }
     }
 
-    // ====== Loading Dialog ======
     fun showLoading() {
         handler.post {
             dialog = Dialog(MIUIActivity.context, R.style.Translucent_NoTitle).apply {
@@ -390,7 +350,6 @@ class MIUIFragment() : Fragment() {
         handler.post { dialog?.dismiss() }
     }
 
-    // ====== 添加控件 + 分组卡片逻辑 ======
     private var cardStreak = 0
     private var prevCardWrapper: LinearLayout? = null
 
@@ -420,18 +379,12 @@ class MIUIFragment() : Fragment() {
     }
 
 
-    /**
-     * ✅ 普通卡片按压渐显/渐隐遮罩（稳定版）
-     * 直接动画 overlay.alpha，不依赖 state 切换
-     */
     @SuppressLint("ClickableViewAccessibility")
     private fun attachFadePress(wrapper: LinearLayout) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val overlay = wrapper.getTag(TAG_PRESS_OVERLAY) as? GradientDrawable ?: return
 
-        // ✅ 这里能稳定拿到 TextWithSpinnerV/其它 BaseView 先前写进去的 touch
         val oldTouch = getExistingTouchListener(wrapper)
-
         val TAG_PRESS_ANIM = 0x55667788
 
         fun cancelAnim() {
@@ -443,7 +396,6 @@ class MIUIFragment() : Fragment() {
         }
 
         wrapper.setOnTouchListener { v, ev ->
-            // 1) 我们自己的遮罩动画
             cancelAnim()
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -461,16 +413,10 @@ class MIUIFragment() : Fragment() {
                     })
                 }
             }
-
-            // 2) 把事件交回旧 listener（它在 ACTION_UP 里 popup.show()）
             oldTouch?.onTouch(v, ev)
-
-            // ✅ 永远不吃事件：让 click/子控件继续正常
             false
         }
     }
-
-
 
     @SuppressLint("ClickableViewAccessibility")
     fun addItem(item: BaseView) {
@@ -485,47 +431,32 @@ class MIUIFragment() : Fragment() {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                setPadding(dp2px(context, 30f), 0, dp2px(context, 30f), 0)
+                setPadding(dp2px(context, 22f), 0, dp2px(context, 22f), 0)
             }
 
             item.onDraw(this@MIUIFragment, wrapper, content)
 
-            val forceCard =
-                (wrapper.getTag(TAG_FORCE_CARD) == true) ||
-                        (content.getTag(TAG_FORCE_CARD) == true)
-
-            val disablePress =
-                (wrapper.getTag(TAG_DISABLE_CARD_PRESS) == true) ||
-                        (content.getTag(TAG_DISABLE_CARD_PRESS) == true)
-
+            val forceCard = (wrapper.getTag(TAG_FORCE_CARD) == true) || (content.getTag(TAG_FORCE_CARD) == true)
+            val disablePress = (wrapper.getTag(TAG_DISABLE_CARD_PRESS) == true) || (content.getTag(TAG_DISABLE_CARD_PRESS) == true)
             val isCard = forceCard || containsInteractive(wrapper) || containsInteractive(content)
-
             val lp = wrapper.layoutParams as LinearLayout.LayoutParams
 
             if (isCard) {
-                lp.setMargins(dp2px(context, 20f), 0, dp2px(context, 20f), 0)
+                lp.setMargins(dp2px(context, 12f), 0, dp2px(context, 12f), 0)
                 lp.topMargin = if (cardStreak > 0) -dp2px(context, SEAM_OVERLAP_DP) else 0
                 lp.bottomMargin = 0
 
                 stripInnerPressOverlays(content)
 
                 if (containsSeekBar(wrapper) || containsSeekBar(content)) {
-                    wrapper.setPadding(
-                        dp2px(context, 30f),
-                        dp2px(context, 30f),
-                        dp2px(context, 30f),
-                        dp2px(context, 5f)
-                    )
+                    wrapper.setPadding(dp2px(context, 30f), dp2px(context, 30f), dp2px(context, 30f), dp2px(context, 5f))
                 } else {
                     wrapper.setPadding(dp2px(context, 30f), 0, dp2px(context, 30f), 0)
                 }
 
                 var isButtonCard = containsBlockMiUIButton(wrapper) || containsBlockMiUIButton(content)
-
                 if (disablePress) isButtonCard = true
 
-
-                // ====== 分组圆角 ======
                 if (cardStreak == 0) {
                     setCardBg(wrapper, CornerMode.FULL, isButtonCard)
                     cardStreak = 1
@@ -559,18 +490,13 @@ class MIUIFragment() : Fragment() {
                                 callBacks?.invoke()
                             }
                         }
-
                         sw.isClickable = false
                         sw.isFocusable = false
                         sw.isFocusableInTouchMode = false
                         sw.background = null
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            sw.foreground = null
-                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) sw.foreground = null
                         sw.isDuplicateParentStateEnabled = true
                     }
-
-                    // ✅ 普通卡片按压动画
                     attachFadePress(wrapper)
                 }
 
@@ -584,7 +510,6 @@ class MIUIFragment() : Fragment() {
                 wrapper.isClickable = false
                 wrapper.setOnTouchListener(null)
             }
-
             wrapper.layoutParams = lp
             itemView.addView(wrapper)
         }

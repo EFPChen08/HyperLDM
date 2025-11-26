@@ -420,7 +420,7 @@ class MIUIPopup(
         fun cancelHide() = lv.removeCallbacks(hideRunnable)
         fun scheduleHide() {
             cancelHide()
-            lv.postDelayed(hideRunnable, 150)
+            lv.postDelayed(hideRunnable, 1500)
         }
 
         lv.setOnTouchListener { _, ev ->

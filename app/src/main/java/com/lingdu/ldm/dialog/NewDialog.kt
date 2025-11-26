@@ -51,7 +51,7 @@ class NewDialog(context: Context, private val newStyle: Boolean = true, val buil
     private val title by lazy {
         TextView(context).also { textView ->
             textView.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also {
-                it.setMargins(0, dp2px(context, 20f), 0, dp2px(context, 20f))
+                it.setMargins(0, dp2px(context, 20f), 0, dp2px(context, 15f))
             }
             textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19f)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -66,13 +66,13 @@ class NewDialog(context: Context, private val newStyle: Boolean = true, val buil
     private val message by lazy {
         TextView(context).also { textView ->
             textView.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).also {
-                it.setMargins(dp2px(context, 20f), 0, dp2px(context, 20f), dp2px(context, 5f))
+                it.setMargins(dp2px(context, 20f), 0, dp2px(context, 20f), dp2px(context, 0f))
             }
             textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             textView.setTextColor(context.getColor(R.color.whiteText))
             textView.gravity = Gravity.CENTER
             textView.visibility = View.GONE
-            textView.setPadding(dp2px(context, 10f), 0, dp2px(context, 10f), dp2px(context, 10f))
+            textView.setPadding(dp2px(context, 10f), 0, dp2px(context, 10f), dp2px(context, 5f))
         }
     }
 

@@ -1,6 +1,5 @@
 package com.lingdu.ldm
 
-import android.content.Intent
 import android.graphics.Typeface
 import android.view.View
 import android.widget.Switch
@@ -17,6 +16,8 @@ import com.lingdu.ldm.activity.view.TextSummaryV
 import com.lingdu.ldm.activity.view.*
 import com.lingdu.ldm.dialog.MIUIDialog
 import com.lingdu.ldm.dialog.NewDialog
+import com.lingdu.ldm.dialog.LDialog
+import com.lingdu.ldm.dialog.PDialog
 import com.lingdu.ldm.activity.view.TextSummaryWithArrowV
 import com.lingdu.ldm.activity.fragment.MIUIFragment
 import com.lingdu.ldm.activity.view.MIUIEditText
@@ -24,43 +25,19 @@ import com.lingdu.ldm.activity.view.TitleTextV
 import com.lingdu.ldm.activity.view.BaseView
 import com.lingdu.ldm.activity.view.BlockMiUIButton
 import android.widget.LinearLayout
-import androidx.core.content.ContentProviderCompat.requireContext
-import androidx.core.content.ContextCompat.startActivity
 import com.lingdu.ldm.activity.annotation.BMPage
 import com.lingdu.ldm.activity.dp2px
 import com.lingdu.ldm.activity.data.CardScope
-import com.lingdu.ldm.dialog.LDialog
-import com.lingdu.ldm.dialog.PDialog
 
 @BMMainPage("Home")
+@BMPage
+class SetPage : BasePage() {
 
-class MainPage : BasePage() {
-
-    override fun getPageTitle(): String = "HyperLDM"
+    override fun getPageTitle(): String = "HyperLDM A"
 
     override fun onCreate() {
 
-        setTitle("HyperLDM")
-
-        Card(onClick = {
-            MIUIDialog(activity) {
-                setTitle("设置")
-                setMessage("你确定要设置吗？")
-                setLButton("取消") {
-                    dismiss()
-                }
-                setRButton("确定") {
-                    // 这里的 'activity' 是 BasePage 类自带的变量，直接用！
-                    val intent = Intent(activity, SetActivity::class.java)
-                    activity.startActivity(intent)
-                    dismiss()
-                }
-            }.show()
-        }) {
-            add(TextV("内容"))
-        }
-
-        NNone()
+        setTitle("设置")
 
         val okBtn = BlockMiUIButton(activity).apply {
             text = "弹Dialog"
@@ -205,8 +182,9 @@ class MainPage : BasePage() {
         CustomView(View(activity).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp2px(activity, 100f)
+                dp2px(activity, 40f)
             )
         })
+
     }
 }

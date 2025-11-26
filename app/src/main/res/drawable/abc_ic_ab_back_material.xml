@@ -1,11 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-        android:autoMirrored="true"
-        android:height="24dp"
-        android:tint="@color/menu"
-        android:viewportHeight="24.0"
-        android:viewportWidth="24.0"
-        android:width="24dp">
-    <path
-            android:fillColor="@android:color/white"
-            android:pathData="M20,11L7.8,11l5.6,-5.6L12,4l-8,8l8,8l1.4,-1.4L7.8,13L20,13L20,11z" />
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="78"
+    android:viewportHeight="78">
+
+    <!-- SVG 里三个图形都在 translate(39,39) 的组里 -->
+    <group
+        android:translateX="39"
+        android:translateY="39">
+
+        <!-- 上面的短横：translate(-20.219,-9.469) rotate(-46) -->
+        <group
+            android:translateX="-20.219"
+            android:translateY="-9.469"
+            android:rotation="-46"
+            android:pivotX="0"
+            android:pivotY="0">
+            <path
+                android:fillColor="#000000"
+                android:pathData="M16.81 -0.09 C16.82,1.98 15.7,2.41 14.31,2.41 C14.31,2.41 -12.69,2.41 -12.69,2.41 C-14.07,2.41 -15.19,1.29 -15.19,-0.09 C-15.19,-1.47 -14.07,-2.59 -12.69,-2.59 C-12.69,-2.59 14.31,-2.59 14.31,-2.59 C15.7,-2.59 16.81,-2.06 16.81,-0.09" />
+        </group>
+
+        <!-- 中间长横：只有 translate(39,39) -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M31.87 0.24 C31.88,2.76 31.22,2.73 29.37,2.74 C29.37,2.74 -29.63,2.74 -29.63,2.74 C-31.01,2.74 -32.13,1.62 -32.13,0.24 C-32.13,-1.14 -31.01,-2.26 -29.63,-2.26 C-29.63,-2.26 29.37,-2.26 29.37,-2.26 C31.25,-2.25 31.86,-2.31 31.87,0.24" />
+
+        <!-- 下面短横：translate(-20.25,10) rotate(46) -->
+        <group
+            android:translateX="-20.25"
+            android:translateY="10"
+            android:rotation="46"
+            android:pivotX="0"
+            android:pivotY="0">
+            <path
+                android:fillColor="#000000"
+                android:pathData="M16 0 C16.12,2.44 14.88,2.5 13.5,2.5 C13.5,2.5 -13.5,2.5 -13.5,2.5 C-14.88,2.5 -16,1.38 -16,0 C-16,-1.38 -14.88,-2.5 -13.5,-2.5 C-13.5,-2.5 13.5,-2.5 13.5,-2.5 C14.88,-2.5 15.88,-2.43 16,0" />
+        </group>
+
+    </group>
 </vector>

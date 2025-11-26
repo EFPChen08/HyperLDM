@@ -9,9 +9,6 @@ import android.widget.TextView
 import com.lingdu.ldm.activity.MIUIActivity
 import com.lingdu.ldm.activity.fragment.MIUIFragment
 import com.lingdu.ldm.activity.view.*
-import com.lingdu.ldm.activity.data.CardScope
-import com.lingdu.ldm.activity.view.WhiteCardContainerV
-
 
 abstract class BasePage {
     val itemList: ArrayList<BaseView> = arrayListOf()
@@ -21,7 +18,13 @@ abstract class BasePage {
 
     abstract fun onCreate()
 
-    open fun asyncInit(fragment: MIUIFragment) {}
+    // ✅ 新增：获取页面大标题的方法，默认为空，子类重写
+    open fun getPageTitle(): String = ""
+
+    open fun asyncInit(fragment: MIUIFragment) {
+        // 当页面初始化时，刷新 Activity 上的大标题
+        activity.setPageTitle(getPageTitle())
+    }
 
     fun showPage(page: Class<out BasePage>) {
         activity.showFragment(page.simpleName)
@@ -29,6 +32,8 @@ abstract class BasePage {
 
     fun setTitle(title: String) {
         activity.title = title
+        // 同时也更新大标题
+        activity.setPageTitle(title)
     }
 
     open fun getTitle(): String = ""
@@ -36,7 +41,6 @@ abstract class BasePage {
     fun getString(id: Int): String = activity.getString(id)
     fun getDrawable(id: Int): Drawable = activity.getDrawable(id)!!
     fun getColor(id: Int): Int = activity.getColor(id)
-
 
     fun GetDataBinding(defValue: () -> Any, recvCallbacks: (View, Int, Any) -> Unit): DataBinding.BindingData {
         return DataBinding.get(bindingData, defValue, recvCallbacks)
@@ -54,6 +58,10 @@ abstract class BasePage {
         itemList.add(LineV(dataBindingRecv))
     }
 
+    fun NNone(dataBindingRecv: DataBinding.Binding.Recv? = null,) {
+        itemList.add(NoneV(dataBindingRecv))
+    }
+
     fun SeekBarSwitchStyle(
         key: String,
         min: Int,
@@ -63,7 +71,6 @@ abstract class BasePage {
     ) {
         itemList.add(MIUISeekBarV(key, min, max, defaultProgress, onChange = onChange))
     }
-
 
     fun SeekBar(key: String, min: Int, max: Int, defaultProgress: Int, dataSend: DataBinding.Binding.Send? = null, dataBindingRecv: DataBinding.Binding.Recv? = null, callBacks: ((Int, TextView) -> Unit)? = null) {
         itemList.add(SeekBarV(key, min, max, defaultProgress, dataSend, dataBindingRecv, callBacks))
@@ -125,6 +132,17 @@ abstract class BasePage {
         itemList.add(TextSummaryWithSpinnerV(textSummaryV, spinnerV, dataBindingRecv))
     }
 
+    fun Card(
+        onClick: (() -> Unit)? = null,
+        block: CardScope.() -> Unit
+    ) {
+        val scope = CardScope()
+        scope.block()
+        if (scope.items.isNotEmpty()) {
+            itemList.add(CardContainerV(scope.items, onClick))
+        }
+    }
+
     fun WhiteCard(block: CardScope.() -> Unit) {
         val scope = CardScope()
         scope.block()
@@ -132,8 +150,6 @@ abstract class BasePage {
             itemList.add(WhiteCardContainerV(scope.items))
         }
     }
-
-
 
     fun TextSSp(text: String? = null, textId: Int? = null, tips: String? = null, tipsId: Int? = null, currentValue: String, data: SpinnerV.SpinnerData.() -> Unit, dataBindingRecv: DataBinding.Binding.Recv? = null) {
         itemList.add(TextSummaryWithSpinnerV(TextSummaryV(text, textId, tips, tipsId), SpinnerV(currentValue, data = data), dataBindingRecv))
@@ -162,5 +178,4 @@ abstract class BasePage {
     fun RadioView(key: String, dataBindingRecv: DataBinding.Binding.Recv? = null, data: RadioViewV.RadioData.() -> Unit) {
         itemList.add(RadioViewV(key, dataBindingRecv, data))
     }
-
 }
